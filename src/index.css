@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+
+/* Hide Chrome, Safari, Edge number input spinners */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide Firefox number input arrows */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+.text_gray_smooth {
+    color: rgba(19,19,19,0.63);
+    font-weight: 500;
+    font-size: 1rem;           /* ~16px */
+    line-height: 1.5;          /* ~24px */
+    letter-spacing: 0.02em;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
