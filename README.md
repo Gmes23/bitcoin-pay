@@ -13,7 +13,7 @@ A modern, responsive web application for exploring and converting token prices a
 
 ## Live Demo
 
-[Application URL goes here]
+Live Demo : [https://bitcoin-pay.vercel.app/]
 
 ## Getting Started
 
@@ -96,7 +96,26 @@ Applied in scenarios where:
 - Dependencies change infrequently
 - Memory trade-off is justified by performance gains
 
+Here is an example of how we used memoization to optimize the conversion calculations instead of using useState which would have caused unnecessary re-renders we can use memoization to cache the results of the calculations and only recalculate when the dependencies change
+
+```javascript
+// Price memoization
+const sourcePrice = useMemo(() => 
+  tokenPrices[sourceToken?.symbol] || 0,
+  [tokenPrices, sourceToken?.symbol]
+);
+
+// Amount calculations
+const sourceAmount = useMemo(() => {
+  if (!usdAmount || !sourcePrice) return '0.00000';
+  const value = parseFloat(usdAmount) / sourcePrice;
+  return isNaN(value) ? '0.00000' : value.toFixed(5);
+}, [usdAmount, sourcePrice]);
+```
+
 2. **Debounced Search Implementation**
+    When a user types "ETH", the debounced search implementation will trigger 1 search ("ETH") instead of 3 searches ("E", "ET", "ETH")
+
 ```javascript
 const debouncedSearch = useCallback(
   debounce((term) => {
@@ -109,6 +128,99 @@ Optimizes search performance by:
 - Reducing unnecessary re-renders
 - Minimizing API calls
 - Improving UI responsiveness
+
+## Token Identification System
+
+### The Challenge
+While the Fun.xyz API provides powerful token price functionality, it requires specific chain IDs and token addresses for each request. However, users typically think in terms of token symbols (like "ETH" or "USDT") rather than addresses and chain IDs. This presents a usability challenge: how do we translate user-friendly token searches into API-compatible requests?
+
+### Our Solution
+We implemented a token to symbol mapping system that allows users to search for tokens by symbol and get the correct token data from the API.
+
+1. **Pre-compiled Token Database**
+```javascript
+// Example from allowedTokens.jsx
+const allowedTokens = [
+  { 
+    chainId: 1,  // Ethereum Mainnet
+    address: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+    symbol: "ETH",
+    name: "Ethereum"
+  },
+  { 
+    chainId: 137,  // Polygon
+    address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+    symbol: "WETH",
+    name: "Wrapped Ether (Polygon)"
+  }
+  // ... other tokens
+];
+```
+
+2. **Smart Token Search**
+```javascript
+const getFilteredTokens = (searchTerm = '') => {
+    const searchLower = searchTerm.toLowerCase();
+    return allowedTokens.filter(token =>
+        token.symbol.toLowerCase().includes(searchLower) ||
+        token.name.toLowerCase().includes(searchLower)
+    );
+};
+```
+
+### Key Features
+
+1. **Cross-Chain Symbol Resolution**
+   - Same symbols across different chains are properly differentiated
+   - Each token maintains its unique chain ID and contract address
+   - Users can search by both symbol and full name
+
+2. **API Integration Layer**
+   - Automatically maps user selections to correct API parameters
+   - Handles chain-specific token addresses
+   - Maintains consistent token identification across the application
+
+3. **User Experience Benefits**
+   - Simple symbol-based search for users
+   - Behind-the-scenes handling of complex chain and address data
+   - No technical knowledge required for token selection
+
+### Implementation Details
+
+1. **Token Data Structure**
+   - Chain ID: Identifies the blockchain network
+   - Contract Address: Unique token identifier on that chain
+   - Symbol: Common trading symbol (e.g., "ETH")
+   - Name: Full token name for clarity
+
+2. **Search and Selection Flow**
+   ```javascript
+   // User searches for "ETH"
+   // System finds all matching tokens across chains:
+   [
+     { symbol: "ETH", chainId: 1, ... },     // Ethereum on Mainnet
+     { symbol: "WETH", chainId: 137, ... },  // Wrapped ETH on Polygon
+     // ... other matches
+   ]
+   ```
+
+3. **API Request Translation**
+   ```javascript
+   // When user selects a token, system automatically provides:
+   {
+     chainId: String(token.chainId),
+     assetTokenAddress: token.address,
+     apiKey: API_KEY
+   }
+   ```
+
+### Why This Matters
+
+This system solves several critical challenges:
+- **Usability**: Users can search naturally without knowing technical details
+- **Accuracy**: Ensures correct token identification across different chains
+- **Maintainability**: Centralized token data management
+- **Scalability**: Easy to add new tokens and chains
 
 ### API Integration Architecture
 
@@ -173,15 +285,15 @@ const formattedPrice = useMemo(() => {
 ### Component Structure
 src/
 ├── components/
-│ ├── TokenConverter.jsx # Main conversion interface
-│ ├── TokenSelectModal.jsx # Token selection modal
-│ └── PriceDisplay.jsx # Price display component
+│   ├── TokenConverter.jsx      # Main conversion interface
+│   ├── TokenSelectModal.jsx    # Token selection modal
+│   └── PriceDisplay.jsx        # Price display component
 ├── hooks/
-│ └── useTokens.js # Token data management
+│   └── useTokens.js            # Token data management
 ├── services/
-│ └── tokenService.js # API interaction layer
+│   └── tokenService.js         # API interaction layer
 └── utils/
-└── formatting.js # Utility functions
+    └── formatting.js           # Utility functions
 
 
 ### Data Flow Architecture
@@ -217,7 +329,7 @@ src/
    - Implement comprehensive error boundaries
    - Provide fallback UI components
    - Maintain detailed error logging
-   
+
 ## Technical Dependencies
 - React 18+
 - Vite
