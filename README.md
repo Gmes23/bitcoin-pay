@@ -283,6 +283,7 @@ const formattedPrice = useMemo(() => {
 ## Technical Implementation Details
 
 ### Component Structure
+```
 src/
 ├── components/
 │   ├── TokenConverter.jsx      # Main conversion interface
@@ -294,7 +295,7 @@ src/
 │   └── tokenService.js         # API interaction layer
 └── utils/
     └── formatting.js           # Utility functions
-
+```
 
 ### Data Flow Architecture
 1. Initial Load:
