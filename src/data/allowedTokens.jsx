@@ -147,12 +147,3 @@ export const allowedTokens = [
     { chainId: 8453, address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", symbol: "BTRFLY", name: "Redacted Cartel" },
 ];
 
-async function fetchTokenPriceForSelected(token) {
-  const { address, chainId } = token;
-  const result = await getAssetPriceInfo({
-    chainId: String(chainId),
-    assetTokenAddress: address,
-    apiKey: API_KEY
-  });
-  // handle result...
-}
