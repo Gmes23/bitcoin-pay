@@ -39,68 +39,72 @@ const logApiResponse = (requestType, response, error = null) => {
   }
 };
 
-// tokens: {symbol_chainId: { address, chainId }}
-export const fetchTokenPrices = async (tokens) => {
+// Helper to determine if we're running in production (Vercel)
+const isProduction = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+// Function to fetch price through proxy (for production/Vercel)
+async function fetchPriceProxy(chainId, address) {
   try {
-    const batchSize = 10;
-    const prices = {};
-    const entries = Object.entries(tokens);
-
-    console.log('\n=== Starting Batch Token Price Fetch ===');
-    console.log('Total tokens to fetch:', entries.length);
-    console.log('Batch size:', batchSize);
-
-    for (let i = 0; i < entries.length; i += batchSize) {
-      const batch = entries.slice(i, i + batchSize);
-      console.log(`\nProcessing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(entries.length/batchSize)}`);
-      
-      await Promise.all(batch.map(async ([key, { address, chainId }]) => {
-        if (!address || !chainId) {
-          console.warn(`Skipping token with missing address or chainId:`, key, address, chainId);
-          return;
-        }
-        try {
-          const requestParams = {
-            chainId: String(chainId),
-            assetTokenAddress: address,
-            apiKey: API_KEY
-          };
-          
-          logApiRequest('getAssetPriceInfo', {
-            chainId: String(chainId),
-            assetTokenAddress: address,
-            // Mask API key in logs
-            apiKey: API_KEY.substring(0, 4) + '...' + API_KEY.substring(API_KEY.length - 4)
-          });
-
-          const result = await getAssetPriceInfo(requestParams);
-          logApiResponse('getAssetPriceInfo', result);
-          
-          if (result?.total) {
-            const price = parseFloat(result.total);
-            if (!isNaN(price)) {
-              prices[key] = price;
-              console.log(`Successfully fetched price for ${key}: ${price}`);
-            }
-          }
-        } catch (error) {
-          logApiResponse('getAssetPriceInfo', null, error);
-          console.warn(`Failed to fetch price for ${key}:`, error);
-        }
-      }));
-      await rateLimit();
-    }
-
-    console.log('\n=== Batch Token Price Fetch Complete ===');
-    console.log('Successfully fetched prices:', Object.keys(prices).length);
-    console.log('Failed fetches:', entries.length - Object.keys(prices).length);
-
-    return prices;
+    const response = await fetch(`/api/proxy?chainId=${chainId}&address=${address}`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.error('Error fetching token prices:', error);
-    return {};
+    console.error('Error fetching price through proxy:', error);
+    throw error;
   }
-};
+}
+
+// Function to fetch price directly (for local development)
+async function fetchPriceDirect(chainId, address) {
+  try {
+    return await getAssetPriceInfo({
+      chainId: String(chainId),
+      assetTokenAddress: address,
+      apiKey: API_KEY
+    });
+  } catch (error) {
+    console.error('Error fetching price directly:', error);
+    throw error;
+  }
+}
+
+// Main function that decides which method to use
+export async function fetchTokenPrices(tokens) {
+  const results = {};
+  const batchSize = 10;
+  let lastRequestTime = 0;
+
+  for (let i = 0; i < tokens.length; i += batchSize) {
+    const batch = tokens.slice(i, i + batchSize);
+    
+    for (const token of batch) {
+      try {
+        // Ensure 1 second between requests
+        const now = Date.now();
+        const timeSinceLastRequest = now - lastRequestTime;
+        if (timeSinceLastRequest < 1000) {
+          await new Promise(resolve => setTimeout(resolve, 1000 - timeSinceLastRequest));
+        }
+
+        // Choose fetch method based on environment
+        const result = isProduction
+          ? await fetchPriceProxy(token.chainId, token.address)
+          : await fetchPriceDirect(token.chainId, token.address);
+
+        if (result?.total) {
+          results[token.symbol] = parseFloat(result.total);
+        }
+
+        lastRequestTime = Date.now();
+      } catch (error) {
+        console.warn(`Failed to fetch price for ${token.symbol}:`, error);
+        results[token.symbol] = null;
+      }
+    }
+  }
+
+  return results;
+}
 
 export const sortTokensByPopularity = (tokens, popularTokens) => {
   return [...tokens].sort((a, b) => {

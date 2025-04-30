@@ -261,24 +261,8 @@ try {
 
 1. **Token Selection Modal**
 - Limited to 25 tokens per view for optimal performance and usability
-- Implements fuzzy search for both token symbols and names
 - Maintains separate loading states per token
 - Includes click-outside behavior for natural interaction
-
-2. **Price Display and Conversion**
-```javascript
-const formattedPrice = useMemo(() => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6
-  }).format(price);
-}, [price]);
-```
-- Dynamic decimal precision based on token value
-- Immediate feedback during conversion
-- Clear loading and error states
 
 ## Technical Implementation Details
 
@@ -336,3 +320,62 @@ src/
 - Vite
 - TailwindCSS
 - Fun.xyz API Integration
+
+## Deployment Configuration
+
+### Local Development vs Production
+
+This project supports both local development and production deployment (e.g., on Vercel) configurations:
+
+#### Local Development
+- Direct API calls to Fun.xyz API
+- Requires API key in local environment
+- No CORS issues in development
+
+#### Production Deployment (Vercel)
+- Uses API proxy to avoid CORS issues
+- Requires environment variables in Vercel dashboard
+- Enhanced security through server-side API calls
+
+### Setting Up Vercel Deployment
+
+1. **Environment Variables**
+   In your Vercel dashboard, add:
+   ```
+   API_KEY=your_funxyz_api_key
+   ```
+
+2. **API Routes**
+   The project includes a proxy route at `/api/proxy` that handles API calls in production to avoid CORS issues.
+
+3. **Automatic Environment Detection**
+   - The application automatically detects whether it's running in production or development
+   - Uses appropriate API calling method based on environment
+   - No code changes needed when deploying
+
+### Development vs Production Code
+
+The codebase maintains both direct API calls and proxy functionality:
+- `tokenService.js` includes both methods and switches automatically
+- Original direct API call code is preserved for local development
+- Proxy implementation is used automatically in production
+
+### Local Development Setup
+```bash
+# Set up environment variables locally
+echo "API_KEY=your_api_key" > .env.local
+
+# Start development server
+npm run dev
+```
+
+### Production Deployment
+```bash
+# Deploy to Vercel
+vercel
+```
+
+Remember to:
+1. Never commit your API keys
+2. Set up environment variables in Vercel
+3. Test both local and production environments
